@@ -1,0 +1,79 @@
+#https://www.analyticsvidhya.com/blog/2018/10/predicting-stock-price-machine-learningnd-deep-learning-techniques-python/
+# https://www.machinelearningplus.com/time-series/arima-model-time-series-forecasting-python/
+
+#import packages
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.arima_model import ARIMA
+import pmdarima as pm
+
+#to plot within notebook
+import matplotlib.pyplot as plt
+#%matplotlib inline
+
+#setting figure size
+from matplotlib.pylab import rcParams
+rcParams['figure.figsize'] = 20,10
+
+#for normalizing data
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0, 1))
+
+#read the file
+df = pd.read_csv('NSE-TATAGLOBAL(1).csv')
+
+#print the head
+print(df.head())
+
+
+
+data = df.sort_index(ascending=True, axis=0)
+
+train = data[:987]
+valid = data[987:]
+
+training = train['Close']
+validation = valid['Close']
+
+
+
+model = pm.auto_arima(training, start_p=1, start_q=1,
+                      test='adf',       # use adftest to find optimal 'd'
+                      max_p=3, max_q=3, # maximum p and q
+                      m=1,              # frequency of series
+                      d=None,           # let model determine 'd'
+                      seasonal=False,   # No Seasonality
+                      start_P=0, 
+                      D=0, 
+                      trace=True,
+                      error_action='ignore',  
+                      suppress_warnings=True, 
+                      stepwise=True)
+
+print(model.summary())
+
+
+#model.plot_diagnostics(figsize=(7,5))
+#plt.show()
+
+
+# Forecast
+n_periods = 240
+fc, confint = model.predict(n_periods=n_periods, return_conf_int=True)
+index_of_fc = np.arange(len(training), len(training)+n_periods)
+
+# make series for plotting purpose
+fc_series = pd.Series(fc, index=index_of_fc)
+lower_series = pd.Series(confint[:, 0], index=index_of_fc)
+upper_series = pd.Series(confint[:, 1], index=index_of_fc)
+
+# Plot
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(training, label='training')
+plt.plot(validation, label='actual')
+plt.plot(fc_series, label='forecast')
+plt.fill_between(lower_series.index, lower_series, upper_series, 
+                 color='k', alpha=.15)
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
